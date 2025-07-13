@@ -8,10 +8,11 @@ from fastapi.responses import PlainTextResponse
 import boto3
 import requests
 from datetime import datetime
-from slugify import slugify  # pip install python-slugify
+import pytz
+from slugify import slugify
 
 # ================================
-# ✅ ロガー設定
+# ロガー設定
 # ================================
 logging.basicConfig(
     level=logging.INFO,
@@ -20,7 +21,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ================================
-# ✅ 環境変数
+# 環境変数
 # ================================
 SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
@@ -29,7 +30,7 @@ AWS_DEFAULT_REGION = os.getenv("AWS_DEFAULT_REGION", "ap-northeast-1")
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 
 # ================================
-# ✅ 設定チェック
+# 設定チェック
 # ================================
 if not SLACK_BOT_TOKEN:
     logger.error("SLACK_BOT_TOKEN is not set! Check your Render environment variables.")
@@ -39,7 +40,7 @@ if not S3_BUCKET_NAME:
     logger.error("S3_BUCKET_NAME is not set! Check your Render environment variables.")
 
 # ================================
-# ✅ boto3 クライアント
+# boto3 クライアント
 # ================================
 s3_client = boto3.client(
     "s3",
@@ -49,7 +50,7 @@ s3_client = boto3.client(
 )
 
 # ================================
-# ✅ FastAPI アプリ
+# FastAPI アプリ
 # ================================
 app = FastAPI()
 
@@ -58,8 +59,16 @@ class SlackRequest(BaseModel):
     challenge: str
     type: str
 
+
 # ================================
-# ✅ ファイルを解凍して S3 にアップロード
+# 日付関連
+# ================================
+def get_jst_today():
+    jst = pytz.timezone('Asia/Tokyo')
+    return datetime.now(jst).strftime("%Y-%m-%d")
+
+# ================================
+# ファイルを解凍して S3 にアップロード
 # ================================
 def download_and_extract_zip(file_info, title_text: str):
     url = file_info["url_private"]
@@ -68,7 +77,11 @@ def download_and_extract_zip(file_info, title_text: str):
 
     if response.status_code == 200:
         zip_filename = file_info["name"]
-        today = datetime.now().strftime("%Y-%m-%d")
+
+        # タイムゾーンをJSTにする
+        jst = pytz.timezone('Asia/Tokyo')
+        today = datetime.now(jst).strftime("%Y-%m-%d")
+
         title_slug = slugify(title_text or "untitled")
 
         # 一時ZIP保存
@@ -102,7 +115,7 @@ def download_and_extract_zip(file_info, title_text: str):
         logger.error(f"Failed to download file: {response.status_code}")
 
 # ================================
-# ✅ Slackエンドポイント
+# Slack エンドポイント
 # ================================
 @app.post("/slack/events")
 async def slack_url_verification(request: Request):
