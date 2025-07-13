@@ -1,1 +1,4 @@
 fastapi[all]
+requests
+boto3
+python-multipart
