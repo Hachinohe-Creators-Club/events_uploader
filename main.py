@@ -50,19 +50,37 @@ async def slack_url_verification(request: Request):
     # イベントコールバック
     if body.get("type") == "event_callback":
         event = body.get("event")
-        if event and event.get("type") == "message" and "subtype" not in event:
+        if event and event.get("type") == "message":
+            subtype = event.get("subtype")
+            # bot_message は除外、file_share はOK
+            if subtype and subtype not in ["file_share"]:
+                logger.info(f"Ignored message with subtype: {subtype}")
+                return {"status": "ignored"}
+
             text = event.get("text", "")
-            channel = event.get("channel")
-            user = event.get("user")
-            logger.info(f"Message event received! text: {text}, channel: {channel}, user: {user}")
-
-            # 添付ファイルがあれば取得
             files = event.get("files", [])
-            for file_info in files:
-                logger.info(f"Attached file: {file_info['name']} ({file_info['mimetype']})")
-                logger.info(f"File URL: {file_info['url_private']}")
-                download_file(file_info)
 
-            # 必要に応じてDB保存や他の処理を追加OK
+            logger.info(f"Text: {text}")
+            for file_info in files:
+                logger.info(f"File: {file_info['name']} ({file_info['mimetype']})")
+
+            # ここでファイルをダウンロード
+            # 解析処理
+            # 外部サービスへ送信
+
+        # if event and event.get("type") == "message" and "subtype" not in event:
+        #     text = event.get("text", "")
+        #     channel = event.get("channel")
+        #     user = event.get("user")
+        #     logger.info(f"Message event received! text: {text}, channel: {channel}, user: {user}")
+        #
+        #     # 添付ファイルがあれば取得
+        #     files = event.get("files", [])
+        #     for file_info in files:
+        #         logger.info(f"Attached file: {file_info['name']} ({file_info['mimetype']})")
+        #         logger.info(f"File URL: {file_info['url_private']}")
+        #         download_file(file_info)
+        #
+        #     # 必要に応じてDB保存や他の処理を追加OK
 
     return {"status": "ok"}
