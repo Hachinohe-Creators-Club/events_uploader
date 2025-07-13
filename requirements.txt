@@ -4,3 +4,4 @@ boto3
 python-slugify
 python-multipart
 pytz
+PyGithub>=2.1.1
