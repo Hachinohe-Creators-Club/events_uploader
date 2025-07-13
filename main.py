@@ -3,6 +3,10 @@ import logging
 from fastapi import FastAPI, Request, HTTPException
 from pydantic import BaseModel
 from fastapi.responses import PlainTextResponse
+import boto3
+import requests
+from datetime import datetime
+
 
 # Slack Bot Token
 SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
@@ -39,16 +43,35 @@ class SlackRequest(BaseModel):
     challenge: str
     type: str
 
+# boto3 クライアント
+s3_client = boto3.client(
+    "s3",
+    aws_access_key_id=AWS_ACCESS_KEY_ID,
+    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+    region_name=AWS_DEFAULT_REGION,
+)
+
 def download_file(file_info):
-    """Slack の添付ファイルを認証付きでダウンロード"""
+    """Slack の添付ファイルを認証付きでダウンロードして S3 にアップロード"""
     url = file_info["url_private"]
     headers = {"Authorization": f"Bearer {SLACK_BOT_TOKEN}"}
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
         filename = file_info["name"]
+
+        # 一時ファイルとして保存
         with open(filename, "wb") as f:
             f.write(response.content)
         logger.info(f"Downloaded file: {filename}")
+
+        # S3 にアップロード
+        today = datetime.now().strftime("%Y-%m-%d")
+        s3_key = f"notices/{today}/{filename}"
+
+        s3_client.upload_file(filename, S3_BUCKET_NAME, s3_key)
+        logger.info(f"Uploaded to S3: s3://{S3_BUCKET_NAME}/{s3_key}")
+
+        # CloudFront などで公開URL作る場合はここで返す
     else:
         logger.error(f"Failed to download file: {response.status_code}")
 
