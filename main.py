@@ -139,7 +139,7 @@ async def slack_url_verification(request: Request):
             logger.info(f"Text: {text}")
             for file_info in files:
                 logger.info(f"File: {file_info['name']} ({file_info['mimetype']})")
-                download_and_extract_zip(file_info, title_text=text)
+                download_and_extract_zip(file_info, title_text=file_info['name'])
 
     return {"status": "ok"}
 
