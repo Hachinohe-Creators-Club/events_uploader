@@ -4,6 +4,25 @@ from fastapi import FastAPI, Request, HTTPException
 from pydantic import BaseModel
 from fastapi.responses import PlainTextResponse
 
+# Slack Bot Token
+SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
+
+if not SLACK_BOT_TOKEN:
+    logger.error("SLACK_BOT_TOKEN is not set! Check your Render environment variables.")
+
+# AWS
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+AWS_DEFAULT_REGION = os.getenv("AWS_DEFAULT_REGION", "ap-northeast-1")  # デフォルト設定も可
+S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
+
+# 設定チェック
+if not AWS_ACCESS_KEY_ID or not AWS_SECRET_ACCESS_KEY:
+    logger.error("AWS credentials are not set! Check your Render environment variables.")
+
+if not S3_BUCKET_NAME:
+    logger.error("S3_BUCKET_NAME is not set! Check your Render environment variables.")
+
 # ロガーの基本設定
 logging.basicConfig(
     level=logging.INFO,  # ログレベル
@@ -14,11 +33,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
-
-SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
-
-if not SLACK_BOT_TOKEN:
-    logger.error("SLACK_BOT_TOKEN is not set! Check your Render environment variables.")
 
 class SlackRequest(BaseModel):
     token: str
@@ -67,20 +81,5 @@ async def slack_url_verification(request: Request):
             # ここでファイルをダウンロード
             # 解析処理
             # 外部サービスへ送信
-
-        # if event and event.get("type") == "message" and "subtype" not in event:
-        #     text = event.get("text", "")
-        #     channel = event.get("channel")
-        #     user = event.get("user")
-        #     logger.info(f"Message event received! text: {text}, channel: {channel}, user: {user}")
-        #
-        #     # 添付ファイルがあれば取得
-        #     files = event.get("files", [])
-        #     for file_info in files:
-        #         logger.info(f"Attached file: {file_info['name']} ({file_info['mimetype']})")
-        #         logger.info(f"File URL: {file_info['url_private']}")
-        #         download_file(file_info)
-        #
-        #     # 必要に応じてDB保存や他の処理を追加OK
 
     return {"status": "ok"}
