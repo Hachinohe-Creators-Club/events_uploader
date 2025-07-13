@@ -5,6 +5,7 @@ import shutil
 from fastapi import FastAPI, Request
 from pydantic import BaseModel
 from fastapi.responses import PlainTextResponse
+from github import Github
 import boto3
 import requests
 from datetime import datetime
@@ -67,6 +68,52 @@ def get_jst_today():
     jst = pytz.timezone('Asia/Tokyo')
     return datetime.now(jst).strftime("%Y-%m-%d")
 
+
+# ================================
+# GitHub 連携
+# ================================
+def upload_markdown_to_github(local_md_file: str, repo_path: str):
+    """ローカルの markdown を GitHub にプッシュ"""
+    github_token = os.getenv("GITHUB_TOKEN")
+    github_repo = os.getenv("GITHUB_REPO")
+    if not github_token or not github_repo:
+        logger.error("GITHUB_TOKEN or GITHUB_REPO is not set!")
+        return
+
+    g = Github(github_token)
+    repo = g.get_repo(github_repo)
+
+    branch = "main"  # 必要なら `master` に
+    commit_message = f"Add event: {os.path.basename(local_md_file)}"
+
+    with open(local_md_file, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    # プッシュ先のパス
+    repo_file_path = f"events/{os.path.basename(local_md_file)}"
+
+    try:
+        contents = repo.get_contents(repo_file_path, ref=branch)
+        # 既にあれば更新
+        repo.update_file(
+            path=repo_file_path,
+            message=commit_message,
+            content=content,
+            sha=contents.sha,
+            branch=branch
+        )
+        logger.info(f"Updated existing file: {repo_file_path}")
+
+    except Exception:
+        # なければ新規作成
+        repo.create_file(
+            path=repo_file_path,
+            message=commit_message,
+            content=content,
+            branch=branch
+        )
+        logger.info(f"Created new file: {repo_file_path}")
+
 # ================================
 # ファイルを解凍して S3 にアップロード
 # ================================
@@ -101,11 +148,15 @@ def download_and_extract_zip(file_info, title_text: str):
         for root, dirs, files in os.walk(extract_dir):
             for file in files:
                 local_path = os.path.join(root, file)
-                relative_path = os.path.relpath(local_path, extract_dir)
-                s3_key = f"events/{today}/{title_slug}/{relative_path}"
 
-                s3_client.upload_file(local_path, S3_BUCKET_NAME, s3_key)
-                logger.info(f"Uploaded to S3: s3://{S3_BUCKET_NAME}/{s3_key}")
+                if file.endswith(".md"):
+                    upload_markdown_to_github(local_path, repo_path="events/")
+                else:
+                    relative_path = os.path.relpath(local_path, extract_dir)
+                    s3_key = f"events/{today}/{title_slug}/{relative_path}"
+
+                    s3_client.upload_file(local_path, S3_BUCKET_NAME, s3_key)
+                    logger.info(f"Uploaded to S3: s3://{S3_BUCKET_NAME}/{s3_key}")
 
         # Cleanup
         os.remove(zip_filename)
