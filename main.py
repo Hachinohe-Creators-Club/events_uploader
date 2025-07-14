@@ -130,7 +130,7 @@ def download_and_extract_zip(file_info, title_text: str):
         today = datetime.now(jst).strftime("%Y-%m-%d")
 
         # 全角スペースを半角に
-        title_part_normalized = title_part.replace('\u3000', ' ')
+        title_part_normalized = title_text.replace('\u3000', ' ')
 
         title_slug = slugify(
             title_part_normalized,
