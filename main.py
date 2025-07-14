@@ -129,7 +129,16 @@ def download_and_extract_zip(file_info, title_text: str):
         jst = pytz.timezone('Asia/Tokyo')
         today = datetime.now(jst).strftime("%Y-%m-%d")
 
-        title_slug = slugify(title_text or "untitled")
+        # 全角スペースを半角に
+        title_part_normalized = title_part.replace('\u3000', ' ')
+
+        title_slug = slugify(
+            title_part_normalized,
+            separator="-",
+            regex_pattern=r"[^\w\s\u4e00-\u9fff\u3040-\u30ffーァ-ヶ一-龥]",  # 英数字+_+スペース+日本語を許可
+            lowercase=False,
+            allow_unicode=True
+        )
 
         # 一時ZIP保存
         with open(zip_filename, "wb") as f:
